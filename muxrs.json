@@ -1,0 +1,34 @@
+{
+  "session": {
+    "name": "nvim",
+    "starting_dir": "/etc/nothing"
+  },
+  "windows": [
+    {
+      "name": "nvim",
+      "layout": "tiled",
+      "set_active": true,
+      "panes": [
+        {
+          "command": "nvim",
+          "is_vertical_split": null
+        },
+        {
+          "command": "ls /etc/dev",
+          "is_vertical_split": null
+        }
+      ]
+    },
+    {
+      "name": "terminal",
+      "layout": "tiled",
+      "starting_dir": "/etc/dev",
+      "panes": [
+        {
+          "command": "ls | fzf",
+          "is_vertical_split": null
+        }
+      ]
+    }
+  ]
+}
