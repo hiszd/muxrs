@@ -23,13 +23,13 @@ pub enum ConfigPostProcessError {
   UnknownError(String),
 }
 
-pub fn extrapolate(config: ConfigSchema) -> ConfigSchema {
+pub fn extrapolate(config: ConfigSchema, args: crate::Args) -> ConfigSchema {
   ConfigSchema {
     session: SessionSchema {
-      name: process(config.session.name).unwrap(),
+      name: process(config.session.name.clone(), args.clone()).unwrap(),
       starting_dir: {
-        match config.session.starting_dir {
-          Some(s) => Some(process(s).unwrap()),
+        match config.session.starting_dir.clone() {
+          Some(s) => Some(process(s.clone(), args.clone()).unwrap()),
           None => None,
         }
       },
@@ -39,10 +39,10 @@ pub fn extrapolate(config: ConfigSchema) -> ConfigSchema {
         .windows
         .iter()
         .map(|w| WindowSchema {
-          name: process(w.name.clone()).unwrap(),
+          name: process(w.name.clone(), args.clone()).unwrap(),
           starting_dir: {
             match &w.starting_dir {
-              Some(s) => Some(process(s.to_string()).unwrap()),
+              Some(s) => Some(process(s.to_string(), args.clone()).unwrap()),
               None => None,
             }
           },
@@ -54,13 +54,13 @@ pub fn extrapolate(config: ConfigSchema) -> ConfigSchema {
   }
 }
 
-fn process(s: String) -> Result<String, ConfigPostProcessError> {
+fn process(s: String, args: crate::Args) -> Result<String, ConfigPostProcessError> {
   println!("processing: {:?}", &s);
   match find(s.clone()) {
     Some(c) => {
       let mut buf = String::from(s);
       for i in c {
-        match replace(buf, i) {
+        match replace(buf, i, args.clone()) {
           Ok(r) => buf = r,
           Err(e) => return Err(e),
         }
@@ -97,21 +97,45 @@ fn find(s: String) -> Option<Vec<Capture>> {
   }
 }
 
-fn replace(s: String, c: Capture) -> Result<String, ConfigPostProcessError> {
+fn replace(s: String, c: Capture, args: crate::Args) -> Result<String, ConfigPostProcessError> {
   let repl = match s.as_str() {
-    "%current_directory%" => std::env::current_dir()
-      .unwrap()
-      .to_string_lossy()
-      .to_string(),
+    "%selected_directory%" => {
+      let s = match get_replacement(s.clone(), args.clone()) {
+        Ok(s) => s,
+        Err(_) => return get_replacement("%current_directory%".to_string(), args.clone()),
+      };
+      s
+    }
+    _ => get_replacement(s.clone(), args.clone())?,
+  };
+  Ok(s.replace(&c.cap, &repl))
+}
+
+fn get_replacement(s: String, args: crate::Args) -> Result<String, ConfigPostProcessError> {
+  match s.as_str() {
+    "%current_directory%" => match std::env::current_dir() {
+      Ok(d) => Ok(d.to_string_lossy().to_string()),
+      Err(e) => Err(ConfigPostProcessError::UnknownError(e.to_string())),
+    },
     "%current_directory_short%" => {
       let cdir = std::env::current_dir()
         .unwrap()
         .to_string_lossy()
         .to_string();
       let v: Vec<&str> = cdir.split("/").collect();
-      v.last().unwrap().to_string()
+      Ok(v.last().unwrap().to_string())
     }
+    "%selected_directory%" => match args.config {
+      Some(s) => Ok(s),
+      None => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
+    },
+    "%selected_directory_short%" => match args.config {
+      Some(s) => {
+        let v: Vec<&str> = s.split("/").collect();
+        Ok(v.last().unwrap().to_string())
+      }
+      None => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
+    },
     _ => return Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
-  };
-  Ok(s.replace(&c.cap, &repl))
+  }
 }

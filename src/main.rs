@@ -4,16 +4,18 @@ pub mod config;
 pub mod tmux;
 
 pub const ABOUT: &str = r#"
-A tool for creating tmux sessions from a config file.
+muxrs quickly launches and configures complex, reproducible tmux development environments.
+It reads muxrs.json from the git root or XDG_CONFIG_HOME directory and creates a new tmux session
+with custom windows, panes, directories, and startup commands, much like tmuxinator.
 "#;
 
 // TODO: Include an option to disable config fallback and fail if not found
 // TODO: Include an option for checking a specified config file
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(next_line_help = true)]
 #[command(version, about, long_about = ABOUT)]
-struct Args {
-  /// The path to the configuration file (.json)
+pub struct Args {
+  /// The path to the configuration file (muxrs.json)
   #[arg(short, long)]
   config: Option<String>,
   /// Go to the root of the git repository for the config file
@@ -22,7 +24,7 @@ struct Args {
   /// Turn debugging information on
   #[arg(short, long)]
   debug: bool,
-  /// Turn off falling back to the default config from the XDG_CONFIG_HOME directory
+  /// Turn off falling back to the default config located in the XDG_CONFIG_HOME directory
   #[arg(short, long)]
   no_fallback: bool,
 }
@@ -31,7 +33,7 @@ fn main() {
   let args = Args::parse();
 
   // NOTE: Step 1: Get the config
-  let config = match config::get_config(args.config.clone(), args.git) {
+  let config = match config::get_config(args) {
     Ok(c) => c,
     Err(e) => {
       println!("{:?}", e.to_string());

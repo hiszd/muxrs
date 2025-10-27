@@ -1,7 +1,7 @@
 {
   "session": {
-    "name": "nvim",
-    "starting_dir": "/etc/nothing"
+    "name": "muxrs_rust",
+    "starting_dir": "%selected_directory%"
   },
   "windows": [
     {
@@ -10,24 +10,15 @@
       "set_active": true,
       "panes": [
         {
-          "command": "nvim",
-          "is_vertical_split": null
-        },
-        {
-          "command": "ls /etc/dev",
-          "is_vertical_split": null
+          "command": "nvim"
         }
       ]
     },
     {
       "name": "terminal",
       "layout": "tiled",
-      "starting_dir": "/etc/dev",
       "panes": [
-        {
-          "command": "ls | fzf",
-          "is_vertical_split": null
-        }
+        {}
       ]
     }
   ]

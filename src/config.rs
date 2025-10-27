@@ -18,70 +18,126 @@ pub enum ConfigError {
   UnknownError(String),
 }
 
+#[allow(dead_code)]
+pub fn get_config_path(args: crate::Args) -> Result<String, ConfigError> {
+  let git = args.git;
+  let configpath = args.config.clone().unwrap_or(".".to_string());
+  let homepath = std::env::home_dir().unwrap().to_string_lossy().to_string();
+  let mut gitpath = None;
+  if git {
+    match git2::Repository::discover(configpath.clone()) {
+      Ok(r) => gitpath = Some(r.workdir().unwrap().to_string_lossy().to_string()),
+      _ => {}
+    }
+  }
+
+  if gitpath.is_some() {
+    let mut g = gitpath.unwrap();
+    if g.ends_with("/") {
+      g += "muxrs.json"
+    } else {
+      g += "/muxrs.json"
+    }
+    println!("Checking to see if config file exists: {}", g);
+    match std::fs::exists(&g) {
+      Ok(true) => {
+        println!("Config file found at: {}", g);
+        return Ok(g);
+      }
+      _ => {
+        println!("Config file not found at: {}", g);
+      }
+    }
+  }
+
+  let mut pth = if configpath.ends_with("/") {
+    configpath + "muxrs.json"
+  } else {
+    configpath + "/muxrs.json"
+  };
+  println!("Checking to see if config file exists: {}", pth);
+  match std::fs::exists(&pth) {
+    Ok(true) => {
+      println!("Config file found at: {}", pth);
+      return Ok(pth);
+    }
+    _ => {
+      println!("Config file not found at: {}", pth);
+    }
+  }
+
+  pth = if homepath.ends_with("/") {
+    homepath + ".config/muxrs/muxrs.json"
+  } else {
+    homepath + "/.config/muxrs/muxrs.json"
+  };
+  println!("Checking to see if config file exists: {}", pth);
+  match std::fs::exists(&pth) {
+    Ok(true) => {
+      println!("Config file found at: {}", pth);
+      return Ok(pth);
+    }
+    _ => {
+      println!("Config file not found at: {}", pth);
+    }
+  }
+  Err(ConfigError::ConfigNotFound)
+}
+
 /// Returns a `ConfigSchema` from the `muxrs.json` file at the root of the Git repo
 #[allow(dead_code)]
-pub fn get_config(path: Option<String>, git: bool) -> Result<schema::ConfigSchema, ConfigError> {
-  // TODO: Include an option to disable config fallback and fail if not found
-  // TODO: Include an option for checking a specified config file
-  let path = match git {
-    true => {
-      let repopath = match git2::Repository::discover(path.clone().unwrap_or(".".to_string())) {
-        Ok(r) => r.workdir().unwrap().to_string_lossy().to_string(),
-        Err(e) => match e.message().to_string() {
-          x if x.contains("could not find repository") => {
-            let pth = match path {
-              Some(p) => p,
-              None => match std::env::home_dir() {
-                Some(d) => d.to_string_lossy().to_string(),
-                None => return Err(ConfigError::HomeDirNotFound),
-              },
-            };
-            if pth.ends_with("/") {
-              pth + ".config/muxrs/muxrs.json"
-            } else {
-              pth + "/.config/muxrs/muxrs.json"
-            }
-          }
-          _ => return Err(ConfigError::UnknownError(e.to_string())),
-        },
-      };
-      // check to see if the end of the path is a slash, if not add it before muxrs.json
-      if repopath.ends_with("/") {
-        repopath + "muxrs.json"
-      } else {
-        repopath + "/muxrs.json"
-      }
-    }
-    false => {
-      // NOTE: If there is no path specified and git is false, use the default config from the
-      // users home directory
-      let pth = match path {
-        Some(p) => p,
-        None => match std::env::home_dir() {
-          Some(d) => d.to_string_lossy().to_string(),
-          None => return Err(ConfigError::HomeDirNotFound),
-        },
-      };
-      if pth.ends_with("/") {
-        pth + ".config/muxrs/muxrs.json"
-      } else {
-        pth + "/.config/muxrs/muxrs.json"
-      }
-    }
-  };
-  println!("Using config file: {}", path);
+pub fn get_config(args: crate::Args) -> Result<schema::ConfigSchema, ConfigError> {
+  let path = get_config_path(args.clone())?;
+  println!("Attempting to use config file: {}", path);
   let mut buf = String::new();
   match std::fs::File::open(path) {
     Ok(mut file) => {
       file.read_to_string(&mut buf).unwrap();
     }
     Err(e) => match e.kind() {
-      std::io::ErrorKind::NotFound => return Err(ConfigError::ConfigNotFound),
+      std::io::ErrorKind::NotFound => {
+        // store the value of the env variable XDG_CONFIG_HOME
+        let confighome = match std::env::var("XDG_CONFIG_HOME") {
+          Ok(v) => v,
+          Err(e) => match e {
+            std::env::VarError::NotPresent => {
+              println!("XDG_CONFIG_HOME not set, using home directory instead");
+              match std::env::home_dir() {
+                Some(d) => {
+                  let b = d.to_string_lossy().to_string();
+                  if b.ends_with("/") {
+                    b + ".config"
+                  } else {
+                    b + "/.config"
+                  }
+                }
+                None => return Err(ConfigError::HomeDirNotFound),
+              }
+            }
+            _ => return Err(ConfigError::UnknownError(e.to_string())),
+          },
+        };
+        let p = if confighome.ends_with("/") {
+          confighome + "muxrs/muxrs.json"
+        } else {
+          confighome + "/muxrs/muxrs.json"
+        };
+        println!("Attempting to use config file: {}", p);
+        match std::fs::File::open(p) {
+          Ok(mut file) => {
+            file.read_to_string(&mut buf).unwrap();
+          }
+          Err(e) => match e.kind() {
+            std::io::ErrorKind::NotFound => return Err(ConfigError::ConfigNotFound),
+            _ => return Err(ConfigError::UnknownError(e.to_string())),
+          },
+        }
+      }
       e => return Err(ConfigError::UnknownError(e.to_string())),
     },
   }
   match serde_json::from_str::<schema::ConfigSchema>(&buf) {
-    Ok(json) => Ok(postprocess::extrapolate(json)),
+    Ok(json) => Ok(postprocess::extrapolate(json, args.clone())),
     Err(e) => Err(ConfigError::InvalidConfig(e.to_string())),
   }
 }
@@ -92,7 +148,13 @@ mod tests {
 
   #[test]
   pub fn bad_config_location_with_git() {
-    match get_config(Some("/etc/".to_string()), true) {
+    let args = crate::Args {
+      git: true,
+      config: Some("/etc/".to_string()),
+      debug: false,
+      no_fallback: false,
+    };
+    match get_config(args) {
       Err(e) => match e {
         ConfigError::RepoNotFound(_) => assert!(true),
         _ => assert!(false),
@@ -102,7 +164,13 @@ mod tests {
   }
   #[test]
   pub fn bad_config_location_without_git() {
-    match get_config(Some("/etc/".to_string()), false) {
+    let args = crate::Args {
+      git: true,
+      config: Some("/etc/".to_string()),
+      debug: false,
+      no_fallback: false,
+    };
+    match get_config(args) {
       Err(e) => match e {
         ConfigError::ConfigNotFound => assert!(true),
         _ => assert!(false),
