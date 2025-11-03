@@ -30,7 +30,15 @@ pub struct Args {
 }
 
 fn main() {
-  let args = Args::parse();
+  let args = {
+    let mut a = Args::parse();
+    if a.config.is_some() {
+      let relative_path = std::path::PathBuf::from(a.config.unwrap());
+      let absolute_path = std::path::absolute(&relative_path).unwrap();
+      a.config = Some(absolute_path.to_string_lossy().to_string());
+    }
+    a
+  };
 
   // NOTE: Step 1: Get the config
   let config = match config::get_config(args) {

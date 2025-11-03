@@ -1,4 +1,7 @@
-use std::io::Read;
+use std::io::{
+  Read,
+  Write,
+};
 
 pub mod postprocess;
 pub mod schema;
@@ -71,17 +74,8 @@ pub fn get_config_path(args: crate::Args) -> Result<String, ConfigError> {
   } else {
     homepath + "/.config/muxrs/muxrs.json"
   };
-  println!("Checking to see if config file exists: {}", pth);
-  match std::fs::exists(&pth) {
-    Ok(true) => {
-      println!("Config file found at: {}", pth);
-      return Ok(pth);
-    }
-    _ => {
-      println!("Config file not found at: {}", pth);
-    }
-  }
-  Err(ConfigError::ConfigNotFound)
+  println!("Recommending the file to config is: {}", pth);
+  Ok(pth)
 }
 
 /// Returns a `ConfigSchema` from the `muxrs.json` file at the root of the Git repo
@@ -122,13 +116,26 @@ pub fn get_config(args: crate::Args) -> Result<schema::ConfigSchema, ConfigError
         } else {
           confighome + "/muxrs/muxrs.json"
         };
-        println!("Attempting to use config file: {}", p);
-        match std::fs::File::open(p) {
+        println!("Attempting to use default config file");
+        match std::fs::File::open(p.clone()) {
           Ok(mut file) => {
             file.read_to_string(&mut buf).unwrap();
           }
           Err(e) => match e.kind() {
-            std::io::ErrorKind::NotFound => return Err(ConfigError::ConfigNotFound),
+            std::io::ErrorKind::NotFound => match std::fs::File::create(p) {
+              Ok(mut f) => {
+                let defaultconfig = schema::ConfigSchema::default();
+                match f.write_all(
+                  serde_json::to_string_pretty(&defaultconfig)
+                    .unwrap()
+                    .as_bytes(),
+                ) {
+                  Ok(_) => return Ok(postprocess::extrapolate(defaultconfig, args.clone())),
+                  Err(e) => return Err(ConfigError::UnknownError(e.to_string())),
+                }
+              }
+              Err(e) => return Err(ConfigError::UnknownError(e.to_string())),
+            },
             _ => return Err(ConfigError::UnknownError(e.to_string())),
           },
         }
@@ -141,7 +148,6 @@ pub fn get_config(args: crate::Args) -> Result<schema::ConfigSchema, ConfigError
     Err(e) => Err(ConfigError::InvalidConfig(e.to_string())),
   }
 }
-
 #[cfg(test)]
 mod tests {
   use super::*;

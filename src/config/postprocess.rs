@@ -99,13 +99,10 @@ fn find(s: String) -> Option<Vec<Capture>> {
 
 fn replace(s: String, c: Capture, args: crate::Args) -> Result<String, ConfigPostProcessError> {
   let repl = match s.as_str() {
-    "%selected_directory%" => {
-      let s = match get_replacement(s.clone(), args.clone()) {
-        Ok(s) => s,
-        Err(_) => return get_replacement("%current_directory%".to_string(), args.clone()),
-      };
-      s
-    }
+    "%selected_directory%" => match get_replacement(s.clone(), args.clone()) {
+      Ok(s) => s,
+      Err(_) => return get_replacement("%current_directory%".to_string(), args.clone()),
+    },
     _ => get_replacement(s.clone(), args.clone())?,
   };
   Ok(s.replace(&c.cap, &repl))
@@ -132,10 +129,14 @@ fn get_replacement(s: String, args: crate::Args) -> Result<String, ConfigPostPro
     "%selected_directory_short%" => match args.config {
       Some(s) => {
         let v: Vec<&str> = s.split("/").collect();
-        Ok(v.last().unwrap().to_string())
+        if s.ends_with("/") {
+          Ok(v.get(v.len() - 2).unwrap().to_string())
+        } else {
+          Ok(v.last().unwrap().to_string())
+        }
       }
       None => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
     },
-    _ => return Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
+    _ => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
   }
 }
