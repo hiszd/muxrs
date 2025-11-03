@@ -19,8 +19,8 @@ pub enum TmuxCommandError {
 pub fn new_session(name: String, start_dir: Option<String>) -> Result<(), TmuxCommandError> {
   let mut cmd = Command::new("tmux");
   cmd.arg("new-session").arg("-d").arg("-s").arg(name);
-  if start_dir.is_some() {
-    cmd.arg("-c").arg(start_dir.unwrap());
+  if let Some(sd) = start_dir {
+    cmd.arg("-c").arg(sd);
   }
   match cmd.output() {
     Ok(output) => {

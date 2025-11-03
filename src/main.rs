@@ -77,7 +77,7 @@ fn main() {
         }
       }
     } else {
-      match session.new_window(&window) {
+      match session.new_window(window) {
         Ok(_) => {
           println!("Created new window");
         }
@@ -103,7 +103,7 @@ fn main() {
       }
       // NOTE: Execute the command in the pane
       if pane.command.is_some() {
-        match session.send_keys(&window, &pane.command.clone().unwrap(), None) {
+        match session.send_keys(window, &pane.command.clone().unwrap(), None) {
           Ok(_) => {
             println!("Executed command");
           }
@@ -114,11 +114,8 @@ fn main() {
         }
       }
     }
-    match window.set_active {
-      Some(true) => {
-        active_windows.push(window.clone());
-      }
-      _ => {}
+    if let Some(true) = window.set_active {
+      active_windows.push(window.clone());
     }
   }
   match active_windows.len() {

@@ -78,7 +78,7 @@ impl Session {
   }
 
   pub fn new_window(&self, config: &WindowSchema) -> Result<(), TmuxError> {
-    match command::new_window(&self.config, &config) {
+    match command::new_window(&self.config, config) {
       Ok(_) => Ok(()),
       Err(e) => Err(TmuxError::UnknownError(e.to_string())),
     }
@@ -97,14 +97,14 @@ impl Session {
     keys: &str,
     pane: Option<usize>,
   ) -> Result<(), TmuxError> {
-    match command::send_keys(&self.config, &window, keys, pane) {
+    match command::send_keys(&self.config, window, keys, pane) {
       Ok(_) => Ok(()),
       Err(e) => Err(TmuxError::UnknownError(e.to_string())),
     }
   }
 
   pub fn select_window(&self, window: &WindowSchema) -> Result<(), TmuxError> {
-    match command::select_window(&self.config, &window) {
+    match command::select_window(&self.config, window) {
       Ok(_) => Ok(()),
       Err(e) => Err(TmuxError::UnknownError(e.to_string())),
     }

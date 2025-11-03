@@ -28,10 +28,11 @@ pub fn extrapolate(config: ConfigSchema, args: crate::Args) -> ConfigSchema {
     session: SessionSchema {
       name: process(config.session.name.clone(), args.clone()).unwrap(),
       starting_dir: {
-        match config.session.starting_dir.clone() {
-          Some(s) => Some(process(s.clone(), args.clone()).unwrap()),
-          None => None,
-        }
+        config
+          .session
+          .starting_dir
+          .clone()
+          .map(|s| process(s.clone(), args.clone()).unwrap())
       },
     },
     windows: {
@@ -41,10 +42,9 @@ pub fn extrapolate(config: ConfigSchema, args: crate::Args) -> ConfigSchema {
         .map(|w| WindowSchema {
           name: process(w.name.clone(), args.clone()).unwrap(),
           starting_dir: {
-            match &w.starting_dir {
-              Some(s) => Some(process(s.to_string(), args.clone()).unwrap()),
-              None => None,
-            }
+            w.starting_dir
+              .as_ref()
+              .map(|s| process(s.to_string(), args.clone()).unwrap())
           },
           set_active: w.set_active,
           panes: w.panes.clone(),
@@ -58,7 +58,7 @@ fn process(s: String, args: crate::Args) -> Result<String, ConfigPostProcessErro
   println!("processing: {:?}", &s);
   match find(s.clone()) {
     Some(c) => {
-      let mut buf = String::from(s);
+      let mut buf = s;
       for i in c {
         match replace(buf, i, args.clone()) {
           Ok(r) => buf = r,
@@ -77,8 +77,8 @@ fn find(s: String) -> Option<Vec<Capture>> {
   // capture them for replacement
   println!("finding: {:?}", s);
   match Regex::new(r"(%[^%]+%)") {
-    Ok(re) => match re.captures(&s) {
-      Some(c) => Some(c.iter().enumerate().fold(Vec::new(), |acc, (i, m)| {
+    Ok(re) => re.captures(&s).map(|c| {
+      c.iter().enumerate().fold(Vec::new(), |acc, (i, m)| {
         if i == 0 {
           return acc;
         }
@@ -90,9 +90,8 @@ fn find(s: String) -> Option<Vec<Capture>> {
           end: n.end(),
         });
         vec
-      })),
-      None => None,
-    },
+      })
+    }),
     Err(e) => panic!("{}", e.to_string()),
   }
 }

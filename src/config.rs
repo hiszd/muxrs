@@ -27,11 +27,8 @@ pub fn get_config_path(args: crate::Args) -> Result<String, ConfigError> {
   let configpath = args.config.clone().unwrap_or(".".to_string());
   let homepath = std::env::home_dir().unwrap().to_string_lossy().to_string();
   let mut gitpath = None;
-  if git {
-    match git2::Repository::discover(configpath.clone()) {
-      Ok(r) => gitpath = Some(r.workdir().unwrap().to_string_lossy().to_string()),
-      _ => {}
-    }
+  if git && let Ok(r) = git2::Repository::discover(configpath.clone()) {
+    gitpath = Some(r.workdir().unwrap().to_string_lossy().to_string())
   }
 
   if gitpath.is_some() {
@@ -162,10 +159,10 @@ mod tests {
     };
     match get_config(args) {
       Err(e) => match e {
-        ConfigError::RepoNotFound(_) => assert!(true),
-        _ => assert!(false),
+        ConfigError::RepoNotFound(_) => panic!(""),
+        _ => panic!(""),
       },
-      Ok(_) => assert!(false),
+      Ok(_) => panic!(""),
     }
   }
   #[test]
@@ -178,10 +175,10 @@ mod tests {
     };
     match get_config(args) {
       Err(e) => match e {
-        ConfigError::ConfigNotFound => assert!(true),
-        _ => assert!(false),
+        ConfigError::ConfigNotFound => panic!(""),
+        _ => panic!(""),
       },
-      Ok(_) => assert!(false),
+      Ok(_) => panic!(""),
     }
   }
 }
