@@ -17,6 +17,37 @@ impl ConfigSchema {
   }
 }
 
+impl Default for ConfigSchema {
+  fn default() -> Self {
+    ConfigSchema {
+      session: SessionSchema {
+        name: "%selected_directory_short%".to_string(),
+        starting_dir: Some("%selected_directory%".to_string()),
+      },
+      windows: vec![
+        WindowSchema {
+          name: "nvim".to_string(),
+          starting_dir: None,
+          set_active: Some(true),
+          panes: vec![PaneSchema {
+            command: Some("nvim".to_string()),
+            is_vertical_split: None,
+          }],
+        },
+        WindowSchema {
+          name: "terminal".to_string(),
+          starting_dir: None,
+          set_active: None,
+          panes: vec![PaneSchema {
+            command: None,
+            is_vertical_split: None,
+          }],
+        },
+      ],
+    }
+  }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SessionSchema {
   pub name: String,
