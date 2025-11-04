@@ -121,11 +121,11 @@ fn get_replacement(s: String, args: crate::Args) -> Result<String, ConfigPostPro
       let v: Vec<&str> = cdir.split("/").collect();
       Ok(v.last().unwrap().to_string())
     }
-    "%selected_directory%" => match args.config {
+    "%selected_directory%" => match args.path {
       Some(s) => Ok(s),
       None => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
     },
-    "%selected_directory_short%" => match args.config {
+    "%selected_directory_short%" => match args.path {
       Some(s) => {
         let v: Vec<&str> = s.split("/").collect();
         if s.ends_with("/") {

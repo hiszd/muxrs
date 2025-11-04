@@ -11,10 +11,18 @@ with custom windows, panes, directories, and startup commands, much like tmuxina
 
 // TODO: Include an option to disable config fallback and fail if not found
 // TODO: Include an option for checking a specified config file
+// NOTE: The proper usage of arguments is the following:
+// If "git "is specified it will either look within the path specified for a git repo, or look within
+// the current working directory for a git repo.
+// If "git" or "path" is specified and "config" is ALSO specified it will determine the working path from
+// the "path" arg, maybe finding the base git directory if "git" is also specified but use the config from the "config" arg
 #[derive(Parser, Clone)]
 #[command(next_line_help = true)]
 #[command(version, about, long_about = ABOUT)]
 pub struct Args {
+  /// The path to the working directory
+  #[arg(short, long)]
+  path: Option<String>,
   /// The path to the configuration file (muxrs.json)
   #[arg(short, long)]
   config: Option<String>,
@@ -36,10 +44,10 @@ pub struct Args {
 fn main() {
   let args = {
     let mut a = Args::parse();
-    if a.config.is_some() {
-      let relative_path = std::path::PathBuf::from(a.config.unwrap());
+    if a.path.is_some() {
+      let relative_path = std::path::PathBuf::from(a.path.unwrap());
       let absolute_path = std::path::absolute(&relative_path).unwrap();
-      a.config = Some(absolute_path.to_string_lossy().to_string());
+      a.path = Some(absolute_path.to_string_lossy().to_string());
     }
     a
   };
