@@ -156,6 +156,7 @@ mod tests {
       config: Some("/etc/".to_string()),
       debug: false,
       no_fallback: false,
+      attach: true,
     };
     match get_config(args) {
       Err(e) => match e {
@@ -172,6 +173,7 @@ mod tests {
       config: Some("/etc/".to_string()),
       debug: false,
       no_fallback: false,
+      attach: true,
     };
     match get_config(args) {
       Err(e) => match e {

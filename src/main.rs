@@ -22,11 +22,15 @@ pub struct Args {
   #[arg(short, long)]
   git: bool,
   /// Turn debugging information on
+  // TODO:
   #[arg(short, long)]
   debug: bool,
   /// Turn off falling back to the default config located in the XDG_CONFIG_HOME directory
+  // TODO:
   #[arg(short, long)]
   no_fallback: bool,
+  #[arg(short, long)]
+  attach: bool,
 }
 
 fn main() {
@@ -41,7 +45,7 @@ fn main() {
   };
 
   // NOTE: Step 1: Get the config
-  let config = match config::get_config(args) {
+  let config = match config::get_config(args.clone()) {
     Ok(c) => c,
     Err(e) => {
       println!("{:?}", e.to_string());
@@ -136,15 +140,14 @@ fn main() {
     }
     _ => {}
   }
+  if args.attach {
+    tmux::command::attach(&config.session).unwrap();
+  }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::config::schema::{
-    ConfigSchema,
-    PaneSchema,
-    WindowSchema,
-  };
+  use crate::config::schema::{ConfigSchema, PaneSchema, WindowSchema};
 
   #[test]
   fn print_config() {

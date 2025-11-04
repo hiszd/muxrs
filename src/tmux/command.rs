@@ -1,9 +1,6 @@
 use std::process::Command;
 
-use crate::config::schema::{
-  SessionSchema,
-  WindowSchema,
-};
+use crate::config::schema::{SessionSchema, WindowSchema};
 
 #[allow(dead_code)]
 #[derive(thiserror::Error, Debug)]
@@ -136,6 +133,24 @@ pub fn select_window(
     .arg("select-window")
     .arg("-t")
     .arg(format!("{}:{}", &session.name, &window.name))
+    .output()
+  {
+    Ok(output) => {
+      let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      println!("output: {}", strng);
+      Ok(())
+    }
+    Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
+  }
+}
+
+// tmux focus-window -t {sessionname}:{windowname}
+#[allow(dead_code)]
+pub fn attach(session: &SessionSchema) -> Result<(), TmuxCommandError> {
+  match Command::new("tmux")
+    .arg("attach")
+    .arg("-t")
+    .arg(&session.name)
     .output()
   {
     Ok(output) => {
