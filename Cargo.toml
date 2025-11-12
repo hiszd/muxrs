@@ -8,6 +8,8 @@ name = "muxrs"
 path = "src/main.rs"
 
 [dependencies]
+tracing = { version = "0.1.40", features = ["async-await"] }
+tracing-subscriber = { version = "0.3.18", features = ["chrono", "env-filter"] }
 clap = { version = "4.5.49", features = ["derive"] }
 config = "0.15.18"
 git2 = "0.20.2"

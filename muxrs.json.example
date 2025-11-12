@@ -1,6 +1,6 @@
 {
   "session": {
-    "name": "muxrs_rust",
+    "name": "%selected_directory_short%",
     "starting_dir": "%selected_directory%"
   },
   "windows": [
@@ -17,11 +17,6 @@
     {
       "name": "terminal",
       "layout": "tiled"
-    },
-    {
-      "name": "stuff",
-      "layout": "tiled",
-      "starting_dir": "~/.config"
     }
   ]
 }

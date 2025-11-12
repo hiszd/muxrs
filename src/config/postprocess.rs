@@ -55,7 +55,7 @@ pub fn extrapolate(config: ConfigSchema, args: crate::Args) -> ConfigSchema {
 }
 
 fn process(s: String, args: crate::Args) -> Result<String, ConfigPostProcessError> {
-  println!("processing: {:?}", &s);
+  tracing::info!("processing: {:?}", &s);
   match find(s.clone()) {
     Some(c) => {
       let mut buf = s;
@@ -65,7 +65,7 @@ fn process(s: String, args: crate::Args) -> Result<String, ConfigPostProcessErro
           Err(e) => return Err(e),
         }
       }
-      println!("processed: {}", buf);
+      tracing::info!("processed: {}", buf);
       Ok(buf.to_string())
     }
     None => Ok(s),
@@ -75,7 +75,7 @@ fn process(s: String, args: crate::Args) -> Result<String, ConfigPostProcessErro
 fn find(s: String) -> Option<Vec<Capture>> {
   // create a new regex that will test to see if there is any characters surrounded by % and
   // capture them for replacement
-  println!("finding: {:?}", s);
+  tracing::info!("finding: {:?}", s);
   match Regex::new(r"(%[^%]+%)") {
     Ok(re) => re.captures(&s).map(|c| {
       c.iter().enumerate().fold(Vec::new(), |acc, (i, m)| {
@@ -101,6 +101,10 @@ fn replace(s: String, c: Capture, args: crate::Args) -> Result<String, ConfigPos
     "%selected_directory%" => match get_replacement(s.clone(), args.clone()) {
       Ok(s) => s,
       Err(_) => return get_replacement("%current_directory%".to_string(), args.clone()),
+    },
+    "%selected_directory_short%" => match get_replacement(s.clone(), args.clone()) {
+      Ok(s) => s,
+      Err(_) => return get_replacement("%current_directory_short%".to_string(), args.clone()),
     },
     _ => get_replacement(s.clone(), args.clone())?,
   };

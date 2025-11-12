@@ -1,6 +1,9 @@
-use std::process::Command;
+use std::{
+  os::unix::process::CommandExt,
+  process::Command,
+};
 
-use crate::config::schema::{SessionSchema, WindowSchema};
+use crate::config::schema::SessionSchema;
 
 #[allow(dead_code)]
 #[derive(thiserror::Error, Debug)]
@@ -20,28 +23,91 @@ pub fn new_session(name: String, start_dir: Option<String>) -> Result<(), TmuxCo
     cmd.arg("-c").arg(sd);
   }
   match cmd.output() {
-    Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}", strng);
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
       Ok(())
     }
     Err(e) => Err(TmuxCommandError::CouldNotCreateSession(e.to_string())),
   }
 }
 
-// tmux rename-window -t {session}:0 {window_name}
+// tmux focus-window -t {sessionname}:{windowname}
 #[allow(dead_code)]
-pub fn rename_window(index: usize, name: &str, new_name: &str) -> Result<(), TmuxCommandError> {
-  match Command::new("tmux")
-    .arg("rename-window")
+pub fn attach(session: &SessionSchema) -> TmuxCommandError {
+  let e = Command::new("tmux")
+    .arg("attach")
     .arg("-t")
-    .arg(format!("{}:{}", name, index))
-    .arg(new_name)
+    .arg(&session.name)
+    .exec();
+  TmuxCommandError::UnknownError(e.to_string())
+}
+
+/* **********************************************
+*                Window Commands
+********************************************** */
+
+// tmux
+#[allow(dead_code)]
+pub fn kill_window(session_id: &str, window_id: &str) -> Result<(), TmuxCommandError> {
+  match Command::new("tmux")
+    .arg("kill-window")
+    .arg("-t")
+    .arg(format!("{}:{}", &session_id, &window_id))
     .output()
   {
-    Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}", strng);
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
+      Ok(())
+    }
+    Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
+  }
+}
+
+// tmux select-window -t {session}:{window}
+#[allow(dead_code)]
+pub fn select_window(session_id: &str, window_id: &str) -> Result<(), TmuxCommandError> {
+  match Command::new("tmux")
+    .arg("select-window")
+    .arg("-t")
+    .arg(format!("{}:{}", &session_id, &window_id))
+    .output()
+  {
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
+      Ok(())
+    }
+    Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
+  }
+}
+
+// tmux split-window -t {session}:{window}
+#[allow(dead_code)]
+pub fn split_window(
+  session_id: &str,
+  window_id: &str,
+  session_sdir: Option<String>,
+  window_sdir: Option<String>,
+  vertical: bool,
+) -> Result<(), TmuxCommandError> {
+  let sdir = match window_sdir {
+    Some(s) => s,
+    None => session_sdir.unwrap_or(".".to_string()),
+  };
+  match Command::new("tmux")
+    .arg("split-window")
+    .arg("-t")
+    .arg(format!("{}:{}", session_id, window_id))
+    .arg("-c")
+    .arg(sdir)
+    .arg(if vertical { "-v" } else { "-h" })
+    .output()
+  {
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
       Ok(())
     }
     Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
@@ -68,43 +134,71 @@ pub fn new_window(
     .arg(path)
     .output()
   {
-    Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}", strng);
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
       Ok(())
     }
     Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
   }
 }
 
-// tmux split-window -t {session}:{window}
+// tmux rename-window -t {session}:0 {window_name}
 #[allow(dead_code)]
-pub fn split_window(name: &str, window: &str, vertical: bool) -> Result<(), TmuxCommandError> {
+pub fn rename_window(index: usize, name: &str, new_name: &str) -> Result<(), TmuxCommandError> {
   match Command::new("tmux")
-    .arg("split-window")
+    .arg("rename-window")
     .arg("-t")
-    .arg(format!("{}:{}", name, window))
-    .arg(if vertical { "-v" } else { "-h" })
+    .arg(format!("{}:{}", name, index))
+    .arg(new_name)
     .output()
   {
-    Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}", strng);
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
       Ok(())
     }
     Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
   }
 }
 
+// tmux respawn-window -t {session_id}:{window_id} -c {path}
+#[allow(dead_code)]
+pub fn respawn_window(
+  session_id: &str,
+  window_id: &str,
+  path: &str,
+) -> Result<(), TmuxCommandError> {
+  match Command::new("tmux")
+    .arg("respawn-window")
+    .arg("-t")
+    .arg(format!("{}:{}", session_id, window_id))
+    .arg("-c")
+    .arg(path)
+    .output()
+  {
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
+      Ok(())
+    }
+    Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
+  }
+}
+
+/* **********************************************
+*                Pane Commands
+********************************************** */
+
 pub fn send_keys(
-  session: &crate::config::schema::SessionSchema,
-  window: &crate::config::schema::WindowSchema,
+  session_name: &str,
+  window_name: &str,
   keys: &str,
   pane: Option<usize>,
 ) -> Result<(), TmuxCommandError> {
   let id = match pane {
-    Some(p) => format!("{}:{}.{}", session.name.clone(), window.name, p),
-    None => format!("{}:{}", session.name.clone(), window.name),
+    Some(p) => format!("{}:{}.{}", session_name, window_name, p),
+    None => format!("{}:{}", session_name, window_name),
   };
   match Command::new("tmux")
     .arg("send-keys")
@@ -114,48 +208,9 @@ pub fn send_keys(
     .arg("C-m")
     .output()
   {
-    Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}", strng);
-      Ok(())
-    }
-    Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
-  }
-}
-
-// tmux focus-window -t {sessionname}:{windowname}
-#[allow(dead_code)]
-pub fn select_window(
-  session: &SessionSchema,
-  window: &WindowSchema,
-) -> Result<(), TmuxCommandError> {
-  match Command::new("tmux")
-    .arg("select-window")
-    .arg("-t")
-    .arg(format!("{}:{}", &session.name, &window.name))
-    .output()
-  {
-    Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}", strng);
-      Ok(())
-    }
-    Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),
-  }
-}
-
-// tmux focus-window -t {sessionname}:{windowname}
-#[allow(dead_code)]
-pub fn attach(session: &SessionSchema) -> Result<(), TmuxCommandError> {
-  match Command::new("tmux")
-    .arg("attach")
-    .arg("-t")
-    .arg(&session.name)
-    .output()
-  {
-    Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}", strng);
+    Ok(_) => {
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}", strng);
       Ok(())
     }
     Err(e) => Err(TmuxCommandError::UnknownError(e.to_string())),

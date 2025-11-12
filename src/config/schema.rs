@@ -29,19 +29,16 @@ impl Default for ConfigSchema {
           name: "nvim".to_string(),
           starting_dir: None,
           set_active: Some(true),
-          panes: vec![PaneSchema {
+          panes: Some(vec![PaneSchema {
             command: Some("nvim".to_string()),
             is_vertical_split: None,
-          }],
+          }]),
         },
         WindowSchema {
           name: "terminal".to_string(),
           starting_dir: None,
           set_active: None,
-          panes: vec![PaneSchema {
-            command: None,
-            is_vertical_split: None,
-          }],
+          panes: None,
         },
       ],
     }
@@ -60,9 +57,10 @@ pub struct WindowSchema {
   pub starting_dir: Option<String>,
   pub set_active: Option<bool>,
   #[serde(default)]
-  pub panes: Vec<PaneSchema>,
+  pub panes: Option<Vec<PaneSchema>>,
 }
 
+// TODO: Add support for starting_dir on each pane
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PaneSchema {
   pub command: Option<String>,

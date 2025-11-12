@@ -36,7 +36,7 @@ pub fn get_windows(session: &SessionSchema) -> Result<Vec<TmuxWindow>, TmuxQuery
   {
     Ok(output) => {
       let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("list-windows");
+      tracing::info!("list-windows");
       // go over each line of the output
       let lines = strng.lines().collect::<Vec<&str>>();
       let mut windows = Vec::new();
@@ -68,7 +68,7 @@ pub fn get_windows(session: &SessionSchema) -> Result<Vec<TmuxWindow>, TmuxQuery
       Ok(windows)
     }
     Err(e) => {
-      println!("Error: {}", e);
+      tracing::error!("Error: {}", e);
       Err(TmuxQueryError::UnknownError(e.to_string()))
     }
   }
@@ -88,8 +88,8 @@ pub fn session_exists(name: String) -> Result<bool, TmuxQueryError> {
     .output()
   {
     Ok(output) => {
-      let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      println!("output: {}, status: {}", strng, output.status);
+      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      // println!("output: {}, status: {}", strng, output.status);
       if output.status.code().unwrap() == 0 {
         Ok(true)
       } else {

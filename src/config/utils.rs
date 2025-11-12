@@ -1,3 +1,5 @@
+use std::io::Write;
+
 pub fn append_path(path: &str, addition: &str) -> String {
   match (path.ends_with("/"), addition.starts_with("/")) {
     // if (true, true) then one of the slashes need to be removed.
@@ -26,3 +28,11 @@ pub fn exists_file(path: &str) -> bool { matches!(std::fs::exists(path), Ok(true
 
 pub fn read_file(path: &str) -> Result<String, std::io::Error> { std::fs::read_to_string(path) }
 
+pub fn write_file(path: &str, contents: String) -> Result<(), std::io::Error> {
+  std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap()).unwrap();
+  let file = std::fs::File::create(path);
+  match file {
+    Ok(mut f) => f.write_all(contents.as_bytes()),
+    Err(e) => Err(e),
+  }
+}

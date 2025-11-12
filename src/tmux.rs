@@ -77,6 +77,13 @@ impl Session {
     }
   }
 
+  pub fn respawn_window(&self, window_name: &str, path: &str) -> Result<(), TmuxError> {
+    match command::respawn_window(&self.name, window_name, path) {
+      Ok(_) => Ok(()),
+      Err(e) => Err(TmuxError::UnknownError(e.to_string())),
+    }
+  }
+
   pub fn new_window(&self, config: &WindowSchema) -> Result<(), TmuxError> {
     match command::new_window(&self.config, config) {
       Ok(_) => Ok(()),
@@ -84,8 +91,26 @@ impl Session {
     }
   }
 
-  pub fn split_window(&self, window: &str, vertical: bool) -> Result<(), TmuxError> {
-    match command::split_window(&self.name, window, vertical) {
+  pub fn kill_window(&self, window_id: &str) -> Result<(), TmuxError> {
+    match command::kill_window(&self.config.name, window_id) {
+      Ok(_) => Ok(()),
+      Err(e) => Err(TmuxError::UnknownError(e.to_string())),
+    }
+  }
+
+  pub fn split_window(
+    &self,
+    window_id: &str,
+    window_sdir: Option<String>,
+    vertical: bool,
+  ) -> Result<(), TmuxError> {
+    match command::split_window(
+      &self.name,
+      window_id,
+      self.config.starting_dir.clone(),
+      window_sdir,
+      vertical,
+    ) {
       Ok(_) => Ok(()),
       Err(e) => Err(TmuxError::UnknownError(e.to_string())),
     }
@@ -97,14 +122,14 @@ impl Session {
     keys: &str,
     pane: Option<usize>,
   ) -> Result<(), TmuxError> {
-    match command::send_keys(&self.config, window, keys, pane) {
+    match command::send_keys(&self.config.name, &window.name, keys, pane) {
       Ok(_) => Ok(()),
       Err(e) => Err(TmuxError::UnknownError(e.to_string())),
     }
   }
 
   pub fn select_window(&self, window: &WindowSchema) -> Result<(), TmuxError> {
-    match command::select_window(&self.config, window) {
+    match command::select_window(&self.config.name, &window.name) {
       Ok(_) => Ok(()),
       Err(e) => Err(TmuxError::UnknownError(e.to_string())),
     }

@@ -1,6 +1,6 @@
 pub mod postprocess;
 pub mod schema;
-mod utils;
+pub mod utils;
 
 use utils::{
   append_path,
@@ -8,6 +8,7 @@ use utils::{
   git_path,
   path_string,
   read_file,
+  write_file,
 };
 
 #[allow(dead_code)]
@@ -49,13 +50,13 @@ pub struct ArgumentConf {
 
 impl ArgumentConf {
   pub fn new(args: crate::Args) -> Self {
-    let path = match (args.git, args.path.clone(), args.config.clone()) {
+    let path = match (!args.no_git, args.path.clone(), args.config.clone()) {
       (true, Some(p), _) => PathConf::GitWPath(p),
       (true, None, _) => PathConf::GitWOPath,
       (false, Some(p), _) => PathConf::NoGitWPath(p),
       (false, None, _) => PathConf::NoGitWOPath,
     };
-    let config = match (args.git, args.path, args.config) {
+    let config = match (!args.no_git, args.path, args.config) {
       (_, _, Some(c)) => ConfigConf::Config(c),
       (g, Some(p), None) => ConfigConf::NoConfigWPath(p, g),
       (g, None, None) => ConfigConf::NoConfigWOPath(g),
@@ -67,16 +68,17 @@ impl ArgumentConf {
 #[allow(dead_code)]
 pub fn get_config_path(args: crate::Args) -> Result<String, ConfigError> {
   let conf = ArgumentConf::new(args.clone());
+  tracing::info!("Using config: {:#?}", conf);
   match conf.config {
     ConfigConf::Config(c) => {
-      println!("Using specified config file: {}", c);
+      tracing::info!("Using specified config file: {}", c);
       Ok(c)
     }
     ConfigConf::NoConfigWPath(p, g) => {
       if g {
         match git_path(&p) {
           Ok(g) => {
-            println!("Using git root from specified path");
+            tracing::info!("Using git root from specified path");
             Ok(append_path(&g, "muxrs.json"))
           }
           Err(e) => match e.to_string().as_str() {
@@ -85,7 +87,7 @@ pub fn get_config_path(args: crate::Args) -> Result<String, ConfigError> {
           },
         }
       } else {
-        println!("Using config from specified path");
+        tracing::info!("Using config from specified path");
         Ok(append_path(&p, "muxrs.json"))
       }
     }
@@ -94,16 +96,16 @@ pub fn get_config_path(args: crate::Args) -> Result<String, ConfigError> {
       if g {
         match git_path(&p) {
           Ok(g) => {
-            println!("Using git root from current location");
+            tracing::info!("Using git root from current location");
             Ok(append_path(&g, "muxrs.json"))
           }
           Err(e) => match e.to_string().as_str() {
-            x if x.contains("Repository not found") => Err(ConfigError::RepoNotFound(p)),
+            x if x.contains("could not find repository at") => Err(ConfigError::RepoNotFound(p)),
             _ => Err(ConfigError::UnknownError(e.to_string())),
           },
         }
       } else {
-        println!("Using current location");
+        tracing::info!("Using current location");
         Ok(append_path(&p, "muxrs.json"))
       }
     }
@@ -113,23 +115,51 @@ pub fn get_config_path(args: crate::Args) -> Result<String, ConfigError> {
 /// Returns a `ConfigSchema` from the `muxrs.json` file at the root of the Git repo
 #[allow(dead_code)]
 pub fn get_config(args: crate::Args) -> Result<schema::ConfigSchema, ConfigError> {
-  let backup_path = append_path(path_string("~/").as_str(), ".muxrs.json");
-  let path = get_config_path(args.clone())?;
-  println!("Attempting to use config file: {}", path);
+  // combine the home path for the user with the config path
+  let home = std::env::var("HOME").unwrap();
+  let backup_path = append_path(&home, ".config/muxrs/muxrs.json");
+  let path = match get_config_path(args.clone()) {
+    Ok(p) => p,
+    Err(e) => match e {
+      ConfigError::RepoNotFound(x) => {
+        tracing::info!("Using path for config file: {}", &x);
+        append_path(&x, "muxrs.json")
+      }
+      _ => return Err(e),
+    },
+  };
+  tracing::info!("Attempting to use config file: {}", path);
   match exists_file(&path) {
-    true => Ok(postprocess::extrapolate(
-      serde_json::from_str::<schema::ConfigSchema>(&read_file(&path).unwrap()).unwrap(),
-      args.clone(),
-    )),
+    true => {
+      println!("Using config file: {}", path);
+      Ok(postprocess::extrapolate(
+        serde_json::from_str::<schema::ConfigSchema>(&read_file(&path).unwrap()).unwrap(),
+        args.clone(),
+      ))
+    }
     false => {
       if !args.no_fallback {
-        println!("Config file not found, attempting to use backup config file");
+        tracing::info!(
+          "Config file not found, attempting to use backup config file at: {}",
+          backup_path
+        );
         if exists_file(&backup_path) {
+          println!("Using config file: {}", &backup_path);
           return Ok(postprocess::extrapolate(
             serde_json::from_str::<schema::ConfigSchema>(&read_file(&backup_path).unwrap())
               .unwrap(),
             args.clone(),
           ));
+        } else {
+          tracing::info!(
+            "Backup config file not found. Creating a default one at: {}",
+            backup_path
+          );
+          let config = schema::ConfigSchema::default();
+          let json = serde_json::to_string_pretty(&config).unwrap();
+          write_file(&backup_path, json).unwrap();
+          println!("Using config file: {}", &backup_path);
+          return Ok(postprocess::extrapolate(config, args.clone()));
         }
       }
       Err(ConfigError::ConfigNotFound)
@@ -144,16 +174,17 @@ mod tests {
   #[test]
   pub fn bad_config_location_with_git() {
     let args = crate::Args {
-      git: true,
+      no_git: false,
       path: Some("/etc/".to_string()),
       config: None,
       debug: false,
       no_fallback: false,
-      attach: true,
+      no_attach: false,
+      verify: false,
     };
     match get_config(args) {
       Err(e) => match e {
-        ConfigError::RepoNotFound(_) => return,
+        ConfigError::RepoNotFound(_) => (),
         _ => panic!(""),
       },
       Ok(_) => panic!(""),
@@ -162,12 +193,13 @@ mod tests {
   #[test]
   pub fn bad_config_location_without_git() {
     let args = crate::Args {
-      git: true,
+      no_git: false,
       path: Some("/etc/".to_string()),
       config: None,
       debug: false,
       no_fallback: false,
-      attach: true,
+      no_attach: false,
+      verify: false,
     };
     match get_config(args) {
       Err(e) => match e {
