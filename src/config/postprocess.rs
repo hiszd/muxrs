@@ -17,6 +17,8 @@ struct Capture {
 #[allow(dead_code)]
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigPostProcessError {
+  #[error("No path specified: {0}")]
+  NoPath(String),
   #[error("Invalid replacement: {0}")]
   InvalidReplacement(String),
   #[error("Unknown Error: {0}")]
@@ -96,19 +98,12 @@ fn find(s: String) -> Option<Vec<Capture>> {
   }
 }
 
-fn replace(s: String, c: Capture, args: crate::Args) -> Result<String, ConfigPostProcessError> {
-  let repl = match s.as_str() {
-    "%selected_directory%" => match get_replacement(s.clone(), args.clone()) {
-      Ok(s) => s,
-      Err(_) => return get_replacement("%current_directory%".to_string(), args.clone()),
-    },
-    "%selected_directory_short%" => match get_replacement(s.clone(), args.clone()) {
-      Ok(s) => s,
-      Err(_) => return get_replacement("%current_directory_short%".to_string(), args.clone()),
-    },
-    _ => get_replacement(s.clone(), args.clone())?,
-  };
-  Ok(s.replace(&c.cap, &repl))
+fn replace(rp: String, c: Capture, args: crate::Args) -> Result<String, ConfigPostProcessError> {
+  tracing::info!("replacing: {}, capture: {:?}", rp, c);
+  match get_replacement(c.cap.clone(), args.clone()) {
+    Ok(s) => Ok(rp.split(&c.cap).collect::<Vec<&str>>().join(&s)),
+    Err(e) => Err(e),
+  }
 }
 
 fn get_replacement(s: String, args: crate::Args) -> Result<String, ConfigPostProcessError> {
@@ -127,7 +122,10 @@ fn get_replacement(s: String, args: crate::Args) -> Result<String, ConfigPostPro
     }
     "%selected_directory%" => match args.path {
       Some(s) => Ok(s),
-      None => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
+      None => match get_replacement("%current_directory%".to_string(), args) {
+        Ok(s) => Ok(s),
+        Err(e) => Err(e),
+      },
     },
     "%selected_directory_short%" => match args.path {
       Some(s) => {
@@ -138,7 +136,10 @@ fn get_replacement(s: String, args: crate::Args) -> Result<String, ConfigPostPro
           Ok(v.last().unwrap().to_string())
         }
       }
-      None => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
+      None => match get_replacement("%current_directory_short%".to_string(), args) {
+        Ok(s) => Ok(s),
+        Err(e) => Err(e),
+      },
     },
     _ => Err(ConfigPostProcessError::InvalidReplacement(s.clone())),
   }

@@ -176,6 +176,7 @@ mod tests {
     let args = crate::Args {
       no_git: false,
       path: Some("/etc/".to_string()),
+      populate: false,
       config: None,
       debug: false,
       no_fallback: false,
@@ -195,6 +196,7 @@ mod tests {
     let args = crate::Args {
       no_git: false,
       path: Some("/etc/".to_string()),
+      populate: false,
       config: None,
       debug: false,
       no_fallback: false,

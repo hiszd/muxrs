@@ -81,20 +81,34 @@ pub fn get_windows(session: &SessionSchema) -> Result<Vec<TmuxWindow>, TmuxQuery
 /// Returns true if the session exists
 #[allow(dead_code)]
 pub fn session_exists(name: String) -> Result<bool, TmuxQueryError> {
-  match Command::new("tmux")
-    .arg("has-session")
-    .arg("-t")
-    .arg(name.clone())
-    .output()
-  {
-    Ok(output) => {
-      // let strng = String::from_utf8_lossy(&output.stdout).to_string();
-      // println!("output: {}, status: {}", strng, output.status);
-      if output.status.code().unwrap() == 0 {
+  match list_sessions() {
+    Ok(v) => {
+      if v.contains(&name) {
         Ok(true)
       } else {
         Ok(false)
       }
+    }
+    Err(e) => Err(e),
+  }
+}
+
+#[allow(dead_code)]
+pub fn list_sessions() -> Result<Vec<String>, TmuxQueryError> {
+  match Command::new("tmux")
+    .arg("list-sessions")
+    .arg("-F")
+    .arg("'#S'")
+    .output()
+  {
+    Ok(output) => {
+      let strng = String::from_utf8_lossy(&output.stdout).to_string();
+      let svec: Vec<String> = strng
+        .lines()
+        .map(|s| s.to_string().replace("'", ""))
+        .collect();
+      println!("{:?}", svec);
+      Ok(svec)
     }
     Err(e) => Err(TmuxQueryError::UnknownError(e.to_string())),
   }
